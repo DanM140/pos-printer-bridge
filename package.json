@@ -1,0 +1,22 @@
+{
+  "name": "pos-printer-bridge",
+  "version": "1.0.0",
+  "description": "POS Print Agent",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electronmon ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "electron": "^37.4.0",
+    "electron-auto-launch": "^5.0.7",
+    "express": "^5.1.0",
+    "socket.io-client": "^4.8.1"
+  },
+  "devDependencies": {
+    "electronmon": "^2.0.2"
+  }
+}

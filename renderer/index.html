@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>POS Printer Agent</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .status { margin: 10px 0; font-weight: bold; }
+    input { padding: 6px; width: 200px; margin: 5px 0; }
+    button { padding: 6px 12px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h2>POS Printer Agent</h2>
+
+  <div class="status" id="status">Checking...</div>
+
+  <p><strong>Agent ID:</strong> <span id="agentId">-</span></p>
+  <p><strong>Branch ID:</strong> <span id="branchId">-</span></p>
+  <p><strong>Printer:</strong> <span id="printer">-</span></p>
+
+  <h3>Set Branch ID</h3>
+  <input type="text" id="branchInput" placeholder="Enter branch ID" />
+  <button onclick="saveBranch()">Save</button>
+<script>
+  let initialized = false; // ✅ track first load only
+  const branchInput = document.getElementById("branchInput");
+
+  async function loadInfo() {
+    try {
+      const res = await fetch("http://localhost:8080/identity");
+      const data = await res.json();
+
+      document.getElementById("agentId").innerText = data.id || "-";
+      document.getElementById("branchId").innerText = data.branch_id || "-";
+      document.getElementById("printer").innerText = data.printer || "-";
+      document.getElementById("status").innerText = "✅ Connected";
+
+      // ✅ Only set input value the first time
+      if (!initialized) {
+        branchInput.value = data.branch_id || "";
+        initialized = true;
+      }
+    } catch {
+      document.getElementById("status").innerText = "❌ Not Connected";
+    }
+  }
+
+  async function saveBranch() { 
+  const branchId = branchInput.value.trim();
+  if (!branchId) return alert("Enter a branch ID");
+
+  try {
+    await fetch("http://localhost:8080/set-branch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ branchId })
+    });
+
+    // Instead of alert, show a temporary status message
+    const status = document.getElementById("status");
+    status.innerText = "✅ Branch ID saved! Restart agent to apply.";
+    status.style.color = "green";
+
+    // Reset back after 5s
+    setTimeout(() => {
+      status.innerText = "✅ Connected";
+      status.style.color = "black";
+    }, 5000);
+  } catch (e) {
+    alert("❌ Failed to save Branch ID");
+  }
+}
+
+
+  // Load immediately, then refresh every 3s
+ loadInfo();
+  setInterval(loadInfo, 3000);
+</script>
+</body>
+</html>
