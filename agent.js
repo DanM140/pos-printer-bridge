@@ -12,12 +12,13 @@ const PORT = 8080; // Local API port
 const configPath = path.join(__dirname, "config.json");
 
 // Load config
-let config = { branchId: null };
+let config = { branchId: null, businessId: null };
 if (fs.existsSync(configPath)) {
   config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
 }
 
-let branchId = config.branchId || null; // dynamic, can change at runtime
+let branchId = config.branchId || null;
+let businessId = config.businessId || null;
 const agentId = os.hostname(); // unique computer name
 
 // Auto-detect default printer (Windows)
@@ -37,8 +38,8 @@ getDefaultPrinter((printerName) => {
 
   socket.on("connect", () => {
     console.log("✅ Connected to central server");
-    // Register agent
-    socket.emit("register_agent", { agentId, printerName, branchId });
+    // Register agent with business + branch
+    socket.emit("register_agent", { agentId, printerName, branchId, businessId });
   });
 
   // Handle print jobs
@@ -61,22 +62,47 @@ getDefaultPrinter((printerName) => {
 
   // Identity info
   app.get("/identity", (req, res) => {
-    res.json({ id: agentId, branch_id: branchId, printer: printerName });
+    res.json({ 
+      id: agentId, 
+      business_id: businessId, 
+      branch_id: branchId, 
+      printer: printerName 
+    });
   });
 
-  // Update branch dynamically
+  // Update branch only
   app.post("/set-branch", (req, res) => {
     const { branchId: newBranch } = req.body;
     if (!newBranch) return res.status(400).json({ error: "branchId required" });
 
-    branchId = newBranch; // update in memory
+    branchId = newBranch;
     config.branchId = newBranch;
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 
     console.log(`🔄 Branch updated to ${branchId}`);
-    socket.emit("update_branch", { agentId, branchId }); // notify server
+    socket.emit("update_branch", { agentId, branchId });
 
     res.json({ success: true, branchId });
+  });
+
+  // Update both business & branch IDs
+  app.post("/set-ids", (req, res) => {
+    const { businessId: newBusiness, branchId: newBranch } = req.body;
+    if (!newBusiness || !newBranch) {
+      return res.status(400).json({ error: "businessId and branchId required" });
+    }
+
+    businessId = newBusiness;
+    branchId = newBranch;
+
+    config.businessId = newBusiness;
+    config.branchId = newBranch;
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+
+    console.log(`🔄 Business updated to ${businessId}, Branch updated to ${branchId}`);
+    socket.emit("update_ids", { agentId, businessId, branchId });
+
+    res.json({ success: true, businessId, branchId });
   });
 
   app.get("/", (req, res) => {
