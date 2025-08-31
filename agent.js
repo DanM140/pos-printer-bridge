@@ -7,30 +7,37 @@ const fs = require("fs");
 const path = require("path");
 
 // === CONFIG ===
-const CENTRAL_SERVER = "http://104.218.48.99:3000"; 
+const CENTRAL_SERVER = "http://104.218.48.99:3000";
 const PORT = 8080; // Local API port
 const configPath = path.join(__dirname, "config.json");
 
 // Load config
-let config = { branchId: null, businessId: null };
+let config = { business_id: null, branch_id: null };
 if (fs.existsSync(configPath)) {
-  config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+  try {
+    config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+  } catch (err) {
+    console.error("⚠️ Failed to parse config.json, using defaults");
+  }
 }
 
-let branchId = config.branchId || null;
-let businessId = config.businessId || null;
+let branchId = config.branch_id || null;
+let businessId = config.business_id || null;
 const agentId = os.hostname(); // unique computer name
 
 // Auto-detect default printer (Windows)
 function getDefaultPrinter(callback) {
-  exec('powershell -Command "Get-Printer | Where-Object Default -eq $True | Select-Object -ExpandProperty Name"', (err, stdout) => {
-    if (err || !stdout.trim()) {
-      console.warn("⚠️ No default printer found, falling back to Microsoft Print to PDF");
-      callback("Microsoft Print to PDF");
-    } else {
-      callback(stdout.trim());
+  exec(
+    'powershell -Command "Get-Printer | Where-Object Default -eq $True | Select-Object -ExpandProperty Name"',
+    (err, stdout) => {
+      if (err || !stdout.trim()) {
+        console.warn("⚠️ No default printer found, falling back to Microsoft Print to PDF");
+        callback("Microsoft Print to PDF");
+      } else {
+        callback(stdout.trim());
+      }
     }
-  });
+  );
 }
 
 getDefaultPrinter((printerName) => {
@@ -62,21 +69,21 @@ getDefaultPrinter((printerName) => {
 
   // Identity info
   app.get("/identity", (req, res) => {
-    res.json({ 
-      id: agentId, 
-      business_id: businessId, 
-      branch_id: branchId, 
-      printer: printerName 
+    res.json({
+      id: agentId,
+      business_id: businessId,
+      branch_id: branchId,
+      printer: printerName,
     });
   });
 
-  // Update branch only
+  // Update branch only (legacy)
   app.post("/set-branch", (req, res) => {
     const { branchId: newBranch } = req.body;
     if (!newBranch) return res.status(400).json({ error: "branchId required" });
 
     branchId = newBranch;
-    config.branchId = newBranch;
+    config.branch_id = newBranch;
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 
     console.log(`🔄 Branch updated to ${branchId}`);
@@ -95,8 +102,8 @@ getDefaultPrinter((printerName) => {
     businessId = newBusiness;
     branchId = newBranch;
 
-    config.businessId = newBusiness;
-    config.branchId = newBranch;
+    config.business_id = newBusiness;
+    config.branch_id = newBranch;
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 
     console.log(`🔄 Business updated to ${businessId}, Branch updated to ${branchId}`);
